@@ -11,7 +11,7 @@ from pycylon import CylonEnv
 from pycylon.net import MPIConfig
 
 from cylonflow.parsl import DEFAULT_LOGGER, CYLON_ENV_KEY, CYLON_LOGGER_KEY
-from cylonflow.parsl.data.result import ResultKind, CylonRemoteResult
+from cylonflow.parsl.data.result import ResultKind, CylonRemoteResultImpl
 from cylonflow.parsl.executor.components import CylonManager, CylonWorker
 
 logger = logging.getLogger(DEFAULT_LOGGER)
@@ -49,9 +49,9 @@ class CylonEnvManager(CylonManager):
             return self.make_exception_result(tid, len_or_payload)
 
         if res_kind == ResultKind.SCALAR:
-            remote_r = CylonRemoteResult(tid, res_kind, 1, success)
+            remote_r = CylonRemoteResultImpl(tid, res_kind, 1, success)
         else:
-            remote_r = CylonRemoteResult(tid, res_kind, [len_or_payload], success)
+            remote_r = CylonRemoteResultImpl(tid, res_kind, [len_or_payload], success)
 
         for s, k, l in results[1:]:
             if not s:
