@@ -8,7 +8,7 @@ import uuid
 
 from mpi4py import MPI
 
-from cylonflow.parsl.executor.env_components import CylonEnvManager, CylonEnvWorker
+from cylonflow.parsl.executor.components import CylonEnvManager, CylonEnvWorker
 from cylonflow.parsl.executor.util import start_file_logger
 
 if __name__ == "__main__":

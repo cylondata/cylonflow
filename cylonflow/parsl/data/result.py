@@ -38,32 +38,7 @@ class ResultKind(IntEnum):
     PYOBJ = 4
 
 
-class CylonRemoteResult(ABC):
-    @property
-    @abstractmethod
-    def tid(self):
-        pass
-
-    @property
-    @abstractmethod
-    def is_ok(self):
-        pass
-
-    @property
-    @abstractmethod
-    def payloads(self):
-        pass
-
-    @property
-    @abstractmethod
-    def kind(self):
-        pass
-
-    def is_remote(self):
-        return self.kind() > 2  # i.e. UNKNOWN or PYOBJ
-
-
-class CylonRemoteResultImpl(CylonRemoteResult):
+class CylonRemoteResult:
     def __init__(self, tid: int, kind: int, payloads: Union[int, List[Any]], success: bool):
         """
         Container for keeping serialized results from each worker
