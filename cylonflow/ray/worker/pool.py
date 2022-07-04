@@ -3,31 +3,9 @@ from typing import Callable, Any, Optional, List, Dict
 
 import ray
 
+from cylonflow.ray.worker.actor import CylonRayActor
+
 logger = logging.getLogger(__name__)
-
-
-class CylonRayActor:
-    """
-    Actor class at the workers
-    """
-
-    def __init__(self, world_rank=0, world_size=1) -> None:
-        self.executable = None
-        # todo init cylon_ctx here
-
-    def execute(self, func):
-        """Executes an arbitrary function on self."""
-        return func(self.executable)
-
-    def start_executable(self,
-                         executable_cls: type = None,
-                         executable_args: list = None,
-                         executable_kwargs: dict = None):
-        executable_args = executable_args or []
-        executable_kwargs = executable_kwargs or {}
-        if executable_cls:
-            self.executable = executable_cls(*executable_args,
-                                             **executable_kwargs)
 
 
 class CylonRayWorkerPool:
@@ -35,10 +13,10 @@ class CylonRayWorkerPool:
     Acts as the remote object that dispatches tasks/ actors to workers.
     """
 
-    def __init__(self, num_workers) -> None:
+    def __init__(self, num_workers, pg_strategy='STRICT_SPREAD', pg_timeout=100) -> None:
         self.num_workers = num_workers
-        self.pg_strategy = 'STRICT_SPREAD'
-        self.pg_timeout = 100
+        self.pg_strategy = pg_strategy
+        self.pg_timeout = pg_timeout
 
         self.workers = None
         self.placement_group = None
@@ -123,7 +101,7 @@ class CylonRayWorkerPool:
         """
         args = args or []
         kwargs = kwargs or {}
-        f = lambda w: fn(*args, **kwargs)
+        f = lambda self_obj, cylon_env: fn(*args, cylon_env=cylon_env, **kwargs)
         return ray.get(self._run_remote(fn=f))
 
     def execute(self, fn: Callable[["executable_cls"], Any],
@@ -150,31 +128,3 @@ class CylonRayWorkerPool:
         if self.placement_group:
             ray.util.remove_placement_group(self.placement_group)
             self.placement_group = None
-
-
-class CylonRayExecutor:
-    """
-    Driver class
-    """
-
-    def __init__(self, num_workers):
-        self.num_workers = num_workers
-
-        self.remote_worker_pool = None
-
-    def start(self,
-              executable_cls: type = None,
-              executable_args: Optional[List] = None,
-              executable_kwargs: Optional[Dict] = None,
-              extra_env_vars: Optional[Dict] = None):
-        self.remote_worker_pool = ray.remote(CylonRayWorkerPool).remote(self.num_workers)
-
-    def run(self,
-            fn: Callable[[Any], Any],
-            args: Optional[List] = None,
-            kwargs: Optional[Dict] = None) -> List[Any]:
-        pass
-
-    def execute(self, fn: Callable[["executable_cls"], Any],
-                callbacks: Optional[List[Callable]] = None) -> List[Any]:
-        pass
