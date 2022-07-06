@@ -1,30 +1,29 @@
 import logging
 import os.path
 import shutil
+from abc import ABC, abstractmethod
 from typing import Callable, Any, Optional, List, Dict
 
 import ray
 
-from cylonflow.ray.worker.actor import CylonRayActor
+from cylonflow.ray.worker.actor import CylonRayFileStoreActor
+from cylonflow.ray.worker.config import GlooFileStoreConfig
 
 logger = logging.getLogger(__name__)
 
 
-class CylonRayWorkerPool:
+class CylonRayWorkerPool(ABC):
     """
     Acts as the remote object that dispatches tasks/ actors to workers.
     """
 
-    def __init__(self, num_workers, pg_strategy='STRICT_SPREAD', pg_timeout=100,
-                 gloo_file_store_path='/tmp/gloo'):
+    def __init__(self, num_workers, pg_strategy='STRICT_SPREAD', pg_timeout=100):
         self.num_workers = num_workers
         self.pg_strategy = pg_strategy
         self.pg_timeout = pg_timeout
-        self.gloo_file_store_path = gloo_file_store_path
-        os.makedirs(self.gloo_file_store_path, exist_ok=True)
 
-        self.gloo_store_prefix = str(ray.get_runtime_context().job_id)
-
+        self.actor_cls = None
+        self.actor_kwargs = None
         self.workers = None
         self.placement_group = None
 
@@ -54,14 +53,13 @@ class CylonRayWorkerPool:
 
         self.workers = []
         for idx in range(self.num_workers):
-            actor = ray.remote(CylonRayActor)
+            actor = ray.remote(self.actor_cls)
             actor_with_opts = actor.options(num_cpus=1,
                                             placement_group_capture_child_tasks=False,
                                             placement_group=self.placement_group,
                                             placement_group_bundle_index=idx)
             worker = actor_with_opts.remote(world_rank=idx, world_size=self.num_workers,
-                                            file_store_path=self.gloo_file_store_path,
-                                            store_prefix=self.gloo_store_prefix)
+                                            **self.actor_kwargs)
             self.workers.append(worker)
 
     def _run_remote(self,
@@ -159,6 +157,7 @@ class CylonRayWorkerPool:
         """
         return ray.get(self._run_cylon_remote(fn))
 
+    @abstractmethod
     def shutdown(self):
         """Destroys the workers."""
         for worker in self.workers:
@@ -167,6 +166,23 @@ class CylonRayWorkerPool:
         if self.placement_group:
             ray.util.remove_placement_group(self.placement_group)
             self.placement_group = None
+
+
+class CylonRayFileStoreWorkerPool(CylonRayWorkerPool):
+    def __init__(self, num_workers, pg_strategy='STRICT_SPREAD', pg_timeout=100, config: GlooFileStoreConfig = None):
+        super().__init__(num_workers, pg_strategy, pg_timeout)
+        self.gloo_file_store_path = config.file_store_path
+
+        self.actor_cls = CylonRayFileStoreActor
+        self.actor_kwargs = {
+            'file_store_path': config.file_store_path,
+            'store_prefix': config.store_prefix or str(ray.get_runtime_context().job_id)
+        }
+
+        os.makedirs(config.file_store_path, exist_ok=True)
+
+    def shutdown(self):
+        super().shutdown()
 
         if os.path.exists(self.gloo_file_store_path):
             shutil.rmtree(self.gloo_file_store_path)

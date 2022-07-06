@@ -2,6 +2,7 @@ import ray
 from pycylon import CylonEnv
 
 from cylonflow.ray.executor import CylonRayExecutor
+from cylonflow.ray.worker.config import GlooFileStoreConfig
 
 
 def task1(x, y=None, cylon_env: CylonEnv = None):
@@ -30,7 +31,8 @@ class Foo:
 
 ray.init(address='localhost:6379', _redis_password='1234')
 
-executor = CylonRayExecutor(4, pg_strategy='SPREAD')
+config = GlooFileStoreConfig()
+executor = CylonRayExecutor(4, config, pg_strategy='SPREAD')
 executor.start(Foo, [10000], {'y': 20000})
 
 xx = 1000
