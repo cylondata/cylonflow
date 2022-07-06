@@ -1,4 +1,3 @@
-import inspect
 import logging
 
 from pycylon import CylonEnv
@@ -12,18 +11,28 @@ class CylonRayActor:
     Actor class at the workers
     """
 
-    def __init__(self, world_rank=0, world_size=1) -> None:
+    def __init__(self, world_rank=0, world_size=1, file_store_path='/tmp/gloo', store_prefix='cylon_gloo') -> None:
         self.rank = world_rank
         self.world_size = world_size
+        self.file_store_path = file_store_path
+        self.store_prefix = store_prefix
 
         self.executable = None
         self.cylon_env = None
 
+    def shutdown(self):
+        if self.executable:
+            del self.executable
+
+        del self.cylon_env
+
+    def execute_cylon(self, func):
+        """Executes an arbitrary function on self."""
+        return func(self.executable, cylon_env=self.cylon_env)
+
     def execute(self, func):
         """Executes an arbitrary function on self."""
-        print("HERE!")
-        print(inspect.getfullargspec(func))
-        return func(self, self.cylon_env)
+        return func(self.executable)
 
     def start_executable(self,
                          executable_cls: type = None,
@@ -35,7 +44,8 @@ class CylonRayActor:
             self.executable = executable_cls(*executable_args,
                                              **executable_kwargs)
 
-        config = GlooStandaloneConfig(rank=self.rank, world_size=self.world_size)
-        config.set_file_store_path('/tmp/gloo')
-        config.set_store_prefix('foo')
-        self.cylon_env = CylonEnv(config=config, distributed=True)
+        if self.cylon_env is None:
+            config = GlooStandaloneConfig(rank=self.rank, world_size=self.world_size)
+            config.set_file_store_path(self.file_store_path)
+            config.set_store_prefix(self.store_prefix)
+            self.cylon_env = CylonEnv(config=config, distributed=True)
