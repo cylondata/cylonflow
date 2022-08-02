@@ -7,7 +7,7 @@ from pycylon.net.gloo_config import GlooStandaloneConfig
 logger = logging.getLogger(__name__)
 
 
-class CylonRayActor(ABC):
+class CylonActor(ABC):
     """
     Actor class at the workers
     """
@@ -51,8 +51,9 @@ class CylonRayActor(ABC):
             self.start_cylon_env()
 
 
-class CylonRayFileStoreActor(CylonRayActor):
-    def __init__(self, world_rank=0, world_size=1, file_store_path='/tmp/gloo', store_prefix='cylon_gloo') -> None:
+class CylonGlooFileStoreActor(CylonActor):
+    def __init__(self, world_rank=0, world_size=1, file_store_path='/tmp/gloo',
+                 store_prefix='cylon_gloo') -> None:
         super().__init__(world_rank, world_size)
         self.file_store_path = file_store_path
         self.store_prefix = store_prefix

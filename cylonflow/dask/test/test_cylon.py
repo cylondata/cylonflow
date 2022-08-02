@@ -1,7 +1,6 @@
-import ray
 from pycylon import CylonEnv
 
-from cylonflow.ray.executor import CylonRayExecutor
+from cylonflow.dask.executor import CylonDaskExecutor
 from cylonflow.api.config import GlooFileStoreConfig
 
 
@@ -29,24 +28,20 @@ class Foo:
         return (self.x, self.y, cylon_env.rank, cylon_env.world_size) if cylon_env else None
 
 
-ray.init(address='localhost:6379', _redis_password='1234')
 
 config = GlooFileStoreConfig()
-executor = CylonRayExecutor(4, config, pg_strategy='SPREAD')
+executor = CylonDaskExecutor(4, config, scheduler_file='/home/niranda/sched.json')
 executor.start(Foo, [10000], {'y': 20000})
 
 xx = 1000
 yy = 2000
 result = executor.run_cylon(task1, args=[xx], kwargs={'y': yy})
-print(ray.get(result))
+print(result)
 
 result = executor.run_cylon(task2)
-print(ray.get(result))
-
-result = executor.run(task3)
-print(ray.get(result))
+print(result)
 
 result = executor.execute_cylon(lambda foo, cylon_env: foo.run(cylon_env=cylon_env))
-print(ray.get(result))
+print(result)
 
 executor.shutdown()
