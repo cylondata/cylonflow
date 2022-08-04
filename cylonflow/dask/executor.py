@@ -43,7 +43,6 @@ class DaskWorkerPool(WorkerPool):
         for a in self.actor_args:
             args.append([a] * self.num_workers)
 
-        print('args:', args)
         futures = self.client.map(self.actor_cls, *args,
                                   key='cy_create',
                                   workers=self.worker_addresses,
