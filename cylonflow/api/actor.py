@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from pycylon import CylonEnv
 from pycylon.net.gloo_config import GlooStandaloneConfig
 
+from cylonflow.api.config import GlooFileStoreConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -52,14 +54,26 @@ class CylonActor(ABC):
 
 
 class CylonGlooFileStoreActor(CylonActor):
-    def __init__(self, world_rank=0, world_size=1, file_store_path='/tmp/gloo',
-                 store_prefix='cylon_gloo') -> None:
+    def __init__(self, world_rank=0, world_size=1, config: GlooFileStoreConfig = None) -> None:
         super().__init__(world_rank, world_size)
-        self.file_store_path = file_store_path
-        self.store_prefix = store_prefix
+        if not config:
+            raise ValueError('config can not be None')
+        self.config = config
+        self.file_store_path = config.file_store_path or '/tmp/gloo'
+        self.store_prefix = config.store_prefix or 'cylon_gloo'
 
     def start_cylon_env(self):
-        config = GlooStandaloneConfig(rank=self.rank, world_size=self.world_size)
-        config.set_file_store_path(self.file_store_path)
-        config.set_store_prefix(self.store_prefix)
-        self.cylon_env = CylonEnv(config=config, distributed=True)
+        comm_config = GlooStandaloneConfig(rank=self.rank, world_size=self.world_size)
+        comm_config.set_file_store_path(self.file_store_path)
+        comm_config.set_store_prefix(self.store_prefix)
+
+        if self.config.tcp_iface:
+            comm_config.set_tcp_iface(self.config.tcp_iface)
+
+        if self.config.tcp_host_name:
+            comm_config.set_tcp_host_name(self.config.tcp_host_name)
+
+        if self.config.tcp_ai_family:
+            comm_config.set_tcp_ai_family(self.config.tcp_ai_family)
+
+        self.cylon_env = CylonEnv(config=comm_config, distributed=self.world_size > 1)

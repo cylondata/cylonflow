@@ -39,10 +39,9 @@ class DaskWorkerPool(WorkerPool):
         return self._wait_for_actor_futures(a_futures)
 
     def _create_workers(self):
-        # args = [(i, self.num_workers, *self.actor_args) for i in range(self.num_workers)]
-        args = [ list(range(self.num_workers)), [self.num_workers]*self.num_workers]
+        args = [list(range(self.num_workers)), [self.num_workers] * self.num_workers]
         for a in self.actor_args:
-            args.append([a]*self.num_workers)
+            args.append([a] * self.num_workers)
 
         print('args:', args)
         futures = self.client.map(self.actor_cls, *args,
@@ -81,8 +80,7 @@ class DaskFileStoreWorkerPool(DaskWorkerPool):
         self.gloo_file_store_path = config.file_store_path
 
         self.actor_cls = CylonGlooFileStoreActor
-        self.actor_args = [config.file_store_path,  # file_store_path
-                           config.store_prefix or str(client.id)]  # store_prefix
+        self.actor_args = [config]
 
         os.makedirs(config.file_store_path, exist_ok=True)
 

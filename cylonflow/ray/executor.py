@@ -4,7 +4,6 @@ import shutil
 from typing import Callable, Any, Optional, List, Dict
 
 import ray
-
 from cylonflow.api.actor import CylonGlooFileStoreActor
 from cylonflow.api.config import GlooFileStoreConfig
 from cylonflow.api.worker import WorkerPool
@@ -174,10 +173,11 @@ class CylonRayFileStoreWorkerPool(CylonRayWorkerPool):
         self.gloo_file_store_path = config.file_store_path
 
         self.actor_cls = CylonGlooFileStoreActor
-        self.actor_kwargs = {
-            'file_store_path': config.file_store_path,
-            'store_prefix': config.store_prefix or str(ray.get_runtime_context().job_id)
-        }
+
+        if not config.store_prefix:
+            config.store_prefix = str(ray.get_runtime_context().job_id)
+
+        self.actor_kwargs = {'config': config}
 
         os.makedirs(config.file_store_path, exist_ok=True)
 
