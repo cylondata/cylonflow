@@ -1,0 +1,14 @@
+v-002 slots=40
+v-003 slots=40
+v-004 slots=40
+v-005 slots=40
+v-006 slots=40
+v-007 slots=40
+v-008 slots=40
+v-009 slots=40
+v-010 slots=40
+v-011 slots=40
+v-012 slots=40
+v-013 slots=40
+v-014 slots=40
+v-015 slots=40
