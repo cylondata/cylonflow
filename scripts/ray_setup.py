@@ -14,25 +14,6 @@ home_dir = os.path.expanduser("~")
 temp_dir = tempfile.gettempdir()
 ray_exec = f'{prefix}/bin/ray'
 
-# TOTAL_NODES = 14
-# MAX_PROCS = 40
-# TOTAL_MEM = 240
-# RAY_PW = '1234'
-# # RAY_EXEC = "/N/u2/d/dnperera/victor/MODIN/bin/ray"
-# RAY_EXEC = "/N/u2/d/dnperera/victor/modin_env/bin/ray"
-# HEAD_IP = "v-001"
-#
-# DASK_SCHED = "/N/u2/d/dnperera/victor/modin_env/bin/dask-scheduler"
-# SCHED_FILE = "/N/u2/d/dnperera/dask-sched.json"
-# DASK_WORKER = "/N/u2/d/dnperera/victor/modin_env/bin/dask-worker"
-# SCHED_IP = "v-001"
-#
-# nodes_file = "nodes.txt"
-# ips = []
-#
-#
-#
-# assert len(ips) == TOTAL_NODES
 
 def _with_ssh(q, ip):
     return f'ssh {ip} {q}'
@@ -64,26 +45,38 @@ def start_ray(host_names, procs_per_node, nodes, args):
     time.sleep(3)
 
 
-def stop_ray(head, prefix):
-    ray_exec = f'{prefix}/bin/ray' if prefix else RAY_EXEC
-    if not head:
-        head = HEAD_IP
+def stop_ray(host_names, args):
+    head = host_names[0]
 
     import ray
     ray.shutdown()
 
     print("stopping workers", flush=True)
-    for ip in host_names:
+    for ip in host_names[1:]:
         subprocess.run(f"ssh {ip} {ray_exec} stop -f", stdout=subprocess.PIPE,
                        stderr=subprocess.STDOUT, shell=True)
 
     time.sleep(3)
 
     print("stopping head", flush=True)
-    subprocess.run(f"ssh {head} {ray_exec} stop -f", stdout=subprocess.PIPE,
+    q = f"{ray_exec} stop -f"
+    if args['host_file']:
+        q = _with_ssh(q, head)
+    subprocess.run(q, stdout=subprocess.PIPE,
                    stderr=subprocess.STDOUT, shell=True)
 
     time.sleep(3)
+
+
+def status_ray(host_names, args):
+    head = host_names[0]
+    query = f"{ray_exec} status --redis_password={args['redis_pw']}"
+
+    if args['host_file']:
+        query = _with_ssh(query, head)
+    p = subprocess.run(query, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True,
+                       text=True)
+    print(p.stdout)
 
 
 def run_main(args):
@@ -95,17 +88,16 @@ def run_main(args):
     else:
         host_names = ['localhost']
 
-    head = host_names[0]
     total_nodes = len(host_names)
 
     if args['op'] == 'start':
         w = args['procs']
-        procs_per_node = int(math.ceil(w / total_nodes))
+        procs_per_node = max(int(math.ceil(w / total_nodes)), 1)
         start_ray(host_names, procs_per_node, min(w, total_nodes), args)
     elif args['op'] == 'stop':
-        stop_cluster(args['engine'], head, prefix)
+        stop_ray(host_names, args)
     elif args['op'] == 'status':
-        cluster_status(args['engine'], head, prefix)
+        status_ray(host_names, args)
 
 
 if __name__ == "__main__":
@@ -115,20 +107,7 @@ if __name__ == "__main__":
     parser.add_argument('-f', dest='host_file', type=int, help='nodes file path', required=False,
                         default=None)
     parser.add_argument('-n', dest='procs', type=int, help='total processes', required=False,
-                        default=0)
-    # parser.add_argument('-e', dest='engine', type=str, help='engine', required=False, default='ray')
-    #
-    # dask_args = parser.add_argument_group("Dask")
-    # parser.add_argument('-m', dest='mem', type=int, help='memory per node (GB)', required=False,
-    #                     default=4)
-    # dask_args.add_argument('--sched-file', dest='sched-file', type=str, help='scheduler file',
-    #                        required=False, default=f"{home_dir}/dask-sched.json")
-    # dask_args.add_argument('--local-dir', dest='local-dir', type=str, help='local dir',
-    #                        required=False, default=f"{temp_dir}/dask")
-    # dask_args.add_argument('-i', dest='interface', type=str, help='interface', required=False,
-    #                        default=None)
-
-    # ray_args = parser.add_argument_group("Ray")
+                        default=1)
     parser.add_argument('--redis-pw', dest='redis_pw', type=str, help='engine', required=False,
                         default='1234')
 
