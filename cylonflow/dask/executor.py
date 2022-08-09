@@ -97,7 +97,6 @@ class CylonDaskExecutor:
     def __init__(self, num_workers: int, config, address: str = None,
                  scheduler_file: str = None) -> None:
         self.client = Client(address=address, scheduler_file=scheduler_file)
-        self.worker_pool = DaskWorkerPool(self.client, num_workers)
 
         if isinstance(config, GlooFileStoreConfig):
             self.worker_pool = DaskFileStoreWorkerPool(self.client, num_workers, config)
