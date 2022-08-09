@@ -85,6 +85,9 @@ class DaskFileStoreWorkerPool(DaskWorkerPool):
         self.gloo_file_store_path = config.file_store_path
 
         self.actor_cls = CylonGlooFileStoreActor
+
+        if not config.store_prefix:
+            config.store_prefix = str(client.id)
         self.actor_args = [config]
 
         os.makedirs(config.file_store_path, exist_ok=True)
