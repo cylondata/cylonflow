@@ -2,26 +2,32 @@ import os
 import shutil
 from typing import Callable, Any, List, Optional, Dict
 
+from distributed import Client, Actor, wait
+from distributed.actor import ActorFuture
+
 from cylonflow.api.actor import CylonGlooFileStoreActor
 from cylonflow.api.config import GlooFileStoreConfig
 from cylonflow.api.worker import WorkerPool
-from distributed import Client, Actor, wait
-from distributed.actor import ActorFuture
 
 
 class DaskWorkerPool(WorkerPool):
     client = None
-    num_workers = 0
+    parallelism = 0
     worker_addresses: List[str] = None
     workers: List[Actor] = None
 
     actor_cls = None
     actor_args = None
 
-    def __init__(self, client: Client, num_workers: int) -> None:
+    def __init__(self, client: Client, parallelism: int) -> None:
         self.client = client
-        self.num_workers = num_workers
-        self.worker_addresses = list(client.ncores().keys())[0:num_workers]
+        self.parallelism = parallelism
+
+        ncores = client.ncores()
+        if len(ncores) < parallelism:
+            raise RuntimeError(f'dask cluster doesnt have enough resources: {len(ncores)}<{parallelism}')
+
+        self.worker_addresses = list(ncores.keys())[0:parallelism]
 
     def _run_cylon_remote(self,
                           fn: Callable[[Any], Any]) -> List[Any]:
@@ -39,9 +45,9 @@ class DaskWorkerPool(WorkerPool):
         return self._wait_for_actor_futures(a_futures)
 
     def _create_workers(self):
-        args = [list(range(self.num_workers)), [self.num_workers] * self.num_workers]
+        args = [list(range(self.parallelism)), [self.parallelism] * self.parallelism]
         for a in self.actor_args:
-            args.append([a] * self.num_workers)
+            args.append([a] * self.parallelism)
 
         futures = self.client.map(self.actor_cls, *args,
                                   key='cy_create',
@@ -74,8 +80,8 @@ class DaskWorkerPool(WorkerPool):
 
 
 class DaskFileStoreWorkerPool(DaskWorkerPool):
-    def __init__(self, client: Client, num_workers, config: GlooFileStoreConfig = None):
-        super().__init__(client, num_workers)
+    def __init__(self, client: Client, parallelism, config: GlooFileStoreConfig = None):
+        super().__init__(client, parallelism)
         self.gloo_file_store_path = config.file_store_path
 
         self.actor_cls = CylonGlooFileStoreActor
